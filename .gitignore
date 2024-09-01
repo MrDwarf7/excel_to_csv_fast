@@ -1,0 +1,13 @@
+/target
+/data
+
+**/data
+**/**data
+
+
+**/data/
+**/data/**
+**/**data/**/*
+
+*.csv
+*.x*

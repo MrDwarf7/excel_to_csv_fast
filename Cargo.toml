@@ -1,0 +1,32 @@
+[package]
+name = "excel_to_csv_fast"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+calamine = { version = "0.25.0", features = ["dates"] }
+chrono = { version = "0.4.38", features = ["clock"] }
+walkdir = "2.5.0"
+
+
+[profile.dev.package."*"]
+opt-level = 3
+codegen-units = 1
+
+
+[profile.dev]
+opt-level = 1
+codegen-units = 256
+incremental = true
+
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+debug = "none"
+# strip = "symbols" # Leave off @ w
+debug-assertions = false
+incremental = true
+
+lto = "fat"
+# panic = "unwind"
