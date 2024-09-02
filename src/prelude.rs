@@ -7,13 +7,13 @@ pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 static CHARS: OnceLock<Vec<char>> = OnceLock::new();
 
-pub fn get_chars() -> &'static Vec<char> {
-    CHARS.get_or_init(|| vec!['\r', '\n', '_'])
+pub fn get_chars() -> &'static [char] {
+    CHARS.get_or_init(|| (&['\r', '\n', '_']).to_vec())
 }
 
 static UTF8_CODES: OnceLock<Vec<u8>> = OnceLock::new();
 
-pub fn get_utf8_codes() -> &'static Vec<u8> {
+pub fn get_utf8_codes() -> &'static [u8] {
     UTF8_CODES.get_or_init(|| get_chars().iter().map(|c| *c as u8).collect())
 }
 
