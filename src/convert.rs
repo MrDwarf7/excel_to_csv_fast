@@ -2,11 +2,12 @@ use crate::prelude::{get_chars, get_chunk, get_utf8_codes, Result};
 use calamine::{open_workbook_auto, Data, Range, Reader};
 use std::fs::File;
 use std::io::{BufWriter, Write};
+use std::ops::DerefMut;
 use std::path::PathBuf;
 
 pub fn convert(file: PathBuf) -> Result<()> {
     let dest = file.with_extension("csv");
-    let mut dest = BufWriter::new(File::create(&dest)?);
+    let mut buffer_file = BufWriter::new(File::create(&dest)?);
     println!("\n\nConverting this File: {:?}", file);
     let mut xl = open_workbook_auto(file).inspect_err(|e| {
         eprintln!("Error opening workbook:: {}", e);
@@ -15,9 +16,8 @@ pub fn convert(file: PathBuf) -> Result<()> {
     let all_sheets = xl.sheet_names().to_vec();
 
     for sheet in all_sheets {
-        dbg!(&sheet.to_string());
         let range = xl.worksheet_range(&sheet)?;
-        write_range(&mut dest, &range)?;
+        write_range(&mut buffer_file, &range)?;
     }
 
     Ok(())
@@ -27,13 +27,13 @@ fn write_range<W: Write>(dest: &mut W, range: &Range<Data>) -> std::io::Result<(
     let height = range.get_size().0 - 1;
 
     // We write each row -> col | col | col ->> until None ->> next row
-    for r in range.rows() {
+    for row in range.rows() {
         // println!("Row: {:?}", r);
-        for (i, c) in r.iter().enumerate() {
+        for (i, col) in row.iter().enumerate() {
             // inner_visibility(r, i, c); ///////// PERF:
 
-            match *c {
-                Data::Empty => Ok(()),
+            match col {
+                Data::Empty => write!(dest, ","),
                 Data::String(ref s) | Data::DateTimeIso(ref s) | Data::DurationIso(ref s) => {
                     let s = clean_text_cell(s);
                     write!(dest, "\"{}\",", s)
@@ -57,28 +57,25 @@ fn write_range<W: Write>(dest: &mut W, range: &Range<Data>) -> std::io::Result<(
 }
 
 // This has terrible performance
-fn clean_text_cell(s: &str) -> String {
-    let mut s = s.to_string();
-
+fn clean_text_cell(s: &str) -> &str {
     while let Some(pos) = s.find(get_chunk()) {
-        s.replace_range(pos..pos + get_chunk().len(), "");
+        s.to_string()
+            .replace_range(pos..pos + get_chunk().len(), "");
     }
 
     for c in get_utf8_codes().iter().map(|c| *c as char) {
-        match c {
-            '\r' | '\n' => {
-                s = s.replace(c, "");
-            }
-            _ => (),
-        }
+        let new_cell_str = match c {
+            '\r' | '\n' => s.replace(c, ""),
+            _ => "".to_string(),
+        };
         // Maybe no required
         if get_chars().contains(&c) {
-            s = s.replace(c, "");
+            new_cell_str.replace(c, "").deref_mut();
         }
         //END Maybe no required
-        s = s.replace(c, "");
+        new_cell_str.replace(c, "").deref_mut();
     }
-    s.escape_default().to_string()
+    s
 }
 
 fn inner_visibility(r: &[Data], i: usize, c: &Data) {
