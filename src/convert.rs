@@ -1,17 +1,9 @@
 use crate::prelude::{get_chars, get_chunk, get_utf8_codes, Result};
 use calamine::{open_workbook_auto, Data, Range, Reader};
-use std::fs::File;
-use std::io::{BufWriter, Write};
-use std::ops::DerefMut;
-use std::path::PathBuf;
 
 pub fn convert(file: PathBuf) -> Result<()> {
     let dest = file.with_extension("csv");
     let mut buffer_file = BufWriter::new(File::create(&dest)?);
-    println!("\n\nConverting this File: {:?}", file);
-    let mut xl = open_workbook_auto(file).inspect_err(|e| {
-        eprintln!("Error opening workbook:: {}", e);
-    })?;
 
     let all_sheets = xl.sheet_names().to_vec();
 
@@ -78,12 +70,6 @@ fn clean_text_cell(s: &str) -> &str {
     s
 }
 
-fn inner_visibility(r: &[Data], i: usize, c: &Data) {
-    let mut buffer = get_std_lock();
-    let (current_cell, next_cell) = calc_cell(r, i);
-    buffer.flush().unwrap();
-    print_inner(buffer, i, c, current_cell, next_cell);
-}
 
 fn calc_cell(r: &[Data], i: usize) -> (Option<&Data>, Option<&Data>) {
     let current_cell = r.get(i);
@@ -110,37 +96,3 @@ pub fn print_inner(
     buffer .write_all(format!("Next cell [row]: {:?}\n", next_cell).as_bytes()) .unwrap();
     buffer.flush().unwrap();
 }
-
-// let lfchunk = LfChunk::new();
-// while let Some(pos) = s.find(lfchunk.chunk.as_str()) {
-//     s.replace_range(pos..pos + lfchunk.chunk.len(), "");
-// }
-// let mut outer_s = s.clone();
-// let mut hmap = std::collections::HashMap::new();
-// for c in remove_chars {
-//     hmap.insert("", c.to_string());
-// }
-// for uc in remove_utf8_codes.iter().map(|c| *c as char) {
-//     hmap.insert("", uc.to_string());
-// }
-// hmap.insert("", remove_chunk.to_string());
-//
-// for (_k, v) in hmap.iter() {
-//     s = s.replace("", v.as_str());
-// }
-//
-//
-
-// Data::DateTime(ref d) => {
-//     let datetime: chrono::DateTime<chrono::FixedOffset> =
-//         match W(d.to_string().as_str()).try_into() {
-//             Ok(dt) => dt,
-//             Err(e) => {
-//                 eprintln!("Error converting to DateTime: {:?}", e);
-//                 continue;
-//             }
-//         };
-//     write!(dest, "{},", datetime)
-// }
-//
-//
