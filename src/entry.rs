@@ -1,5 +1,5 @@
 use crate::{convert::convert, Result};
-use std::{path::PathBuf, sync::mpsc::Receiver};
+use std::{path::PathBuf, thread::JoinHandle};
 
 pub fn run() -> Result<()> {
     let start = std::time::Instant::now();
@@ -7,7 +7,6 @@ pub fn run() -> Result<()> {
     dbg!(&path);
 
     let files = if path.is_dir() {
-        dbg!("is dir");
         filter_for_compat(path)?
     } else {
         vec![path]
@@ -15,32 +14,21 @@ pub fn run() -> Result<()> {
 
     dbg!(&files);
 
-    let mut tasks = vec![];
+    #[allow(unused_mut)]
+    let mut tasks: Vec<JoinHandle<()>> = Vec::new();
 
-    // let (timer_tx, timer_rx) = std::sync::mpsc::channel();
-    // tasks.push(toggle_timer(timer_rx));
-    // timer_tx.send(TimerLife::Start).unwrap();
-
-    let (tx, rx) = std::sync::mpsc::channel();
+    // let (tx, rx) = std::sync::mpsc::channel();
 
     for file in files {
-        let tx = tx.clone();
-        tasks.push(std::thread::spawn(move || {
-            // let mut file = file.clone();
-            // let file = file.deref_mut();
-            convert(file.to_path_buf()).unwrap();
-            tx.send(()).unwrap();
-            // std::thread::sleep(std::time::Duration::from_millis(50));
-        }));
+        // Muli --
+        // multi_thread_read(&tx, file, &mut tasks);
+
+        // Single --
+        convert(file.to_path_buf()).unwrap();
     }
 
-    tasks.push(std::thread::spawn(move || {
-        while rx.recv().is_ok() {
-            println!("Thread finished");
-        }
-        drop(rx);
-    }));
-    drop(tx);
+    // multi_thread_recv(rx, &mut tasks);
+    // drop(tx);
 
     for task in tasks {
         task.join().unwrap();
@@ -52,12 +40,35 @@ pub fn run() -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
+fn multi_thread_recv(rx: std::sync::mpsc::Receiver<()>, tasks: &mut Vec<JoinHandle<()>>) {
+    tasks.push(std::thread::spawn(move || {
+        while rx.recv().is_ok() {
+            println!("Thread finished");
+        }
+        drop(rx);
+    }))
+}
+
+#[allow(dead_code)]
+fn multi_thread_read(
+    tx: &std::sync::mpsc::Sender<()>,
+    file: PathBuf,
+    tasks: &mut Vec<JoinHandle<()>>,
+) {
+    let tx = tx.clone();
+    tasks.push(std::thread::spawn(move || {
+        convert(file.to_path_buf()).unwrap();
+        tx.send(()).unwrap();
+    }))
+}
+
 pub fn filter_for_compat(dir_with_files: PathBuf) -> Result<Vec<PathBuf>> {
     let mut files = vec![];
     for entry in std::fs::read_dir(dir_with_files)? {
         let entry = entry?;
         let path = entry.path();
-        dbg!(&path);
+        // dbg!(&path);
         match path.extension().and_then(|s| s.to_str()) {
             Some("xlsx") | Some("xlsm") | Some("xlsb") | Some("xls") => files.push(path),
             _ => (),
